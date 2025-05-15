@@ -63,6 +63,9 @@ const SparkPage: React.FC = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         }),
       ]);
+      console.log('Products:', productsResponse.data);
+      console.log('Movements:', movementsResponse.data);
+      console.log('Alerts:', alertsResponse.data);
       setProducts(productsResponse.data);
       setMovements(movementsResponse.data);
       setAlerts(alertsResponse.data);
@@ -81,15 +84,22 @@ const SparkPage: React.FC = () => {
 
   // Calculate statistics
   const totalProducts = products.length;
-  const totalStock = products.reduce((acc, product) => acc + (product.currentStock || 0), 0);
-  const lowStockProducts = products.filter(product => (product.currentStock || 0) < (product.minThreshold || 0)).length;
-  const totalValue = products.reduce((acc, product) => acc + ((product.price || 0) * (product.currentStock || 0)), 0);
+  const totalStock = products.reduce((acc, product) => acc + (product.quantity || 0), 0);
+  const lowStockProducts = products.filter(
+    product => (product.quantity || 0) < (product.minStockAlert || 0)
+  ).length;
+  const totalValue = products.reduce(
+    (acc, product) => acc + ((product.price || 0) * (product.quantity || 0)),
+    0
+  );
 
-  // Prepare data for charts
+  // Debug category values for the chart
   const categoryData = products.reduce((acc: { [key: string]: number }, product) => {
-    acc[product.category || 'Inconnu'] = (acc[product.category || 'Inconnu'] || 0) + 1;
+    const category = product.category || 'Inconnu';
+    acc[category] = (acc[category] || 0) + 1;
     return acc;
   }, {});
+  console.log('Category Distribution:', categoryData);
 
   const pieChartData = Object.entries(categoryData).map(([name, value]) => ({ name, value }));
   const COLORS = ['#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#0ea5e9'];
@@ -102,24 +112,32 @@ const SparkPage: React.FC = () => {
 
   const movementsData = last7Days.map(date => {
     const dayMovements = movements.filter(m => new Date(m.date).toISOString().split('T')[0] === date);
-    const entries = dayMovements.filter(m => m.type === 'entry').reduce((acc, m) => acc + (m.quantity || 0), 0);
-    const exits = dayMovements.filter(m => m.type === 'exit').reduce((acc, m) => acc + (m.quantity || 0), 0);
+    const entries = dayMovements
+      .filter(m => m.type === 'entry')
+      .reduce((acc, m) => acc + (m.quantity || 0), 0);
+    const exits = dayMovements
+      .filter(m => m.type === 'exit')
+      .reduce((acc, m) => acc + (m.quantity || 0), 0);
     return {
       date: new Date(date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }),
       entries,
       exits,
     };
   });
+  console.log('Movements Data:', movementsData);
 
   const categoryValues = products.reduce((acc: { [key: string]: number }, product) => {
-    acc[product.category || 'Inconnu'] = (acc[product.category || 'Inconnu'] || 0) + ((product.price || 0) * (product.currentStock || 0));
+    const category = product.category || 'Inconnu';
+    acc[category] = (acc[category] || 0) + ((product.price || 0) * (product.quantity || 0));
     return acc;
   }, {});
+  console.log('Category Values:', categoryValues);
 
   const valueChartData = Object.entries(categoryValues).map(([category, value]) => ({
     category,
     value: Math.round(value),
   }));
+  console.log('Value Chart Data:', valueChartData);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('fr-MA', {
@@ -263,8 +281,22 @@ const SparkPage: React.FC = () => {
                     }}
                   />
                   <Legend />
-                  <Area type="monotone" dataKey="entries" name="Entrées" stroke="#6366f1" fillOpacity={1} fill="url(#colorEntries)" />
-                  <Area type="monotone" dataKey="exits" name="Sorties" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorExits)" />
+                  <Area
+                    type="monotone"
+                    dataKey="entries"
+                    name="Entrées"
+                    stroke="#6366f1"
+                    fillOpacity={1}
+                    fill="url(#colorEntries)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="exits"
+                    name="Sorties"
+                    stroke="#8b5cf6"
+                    fillOpacity={1}
+                    fill="url(#colorExits)"
+                  />
                 </RechartsAreaChart>
               ),
             },
