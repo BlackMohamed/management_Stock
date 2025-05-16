@@ -6,7 +6,7 @@ const movementSchema = new mongoose.Schema({
   type: { type: String, enum: ['entry', 'exit'], required: true },
   date: { type: Date, default: Date.now },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  userName: { type: String }, // Optional, can be populated from userId
+  userName: { type: String },
 });
 
 module.exports = mongoose.model('Movement', movementSchema);

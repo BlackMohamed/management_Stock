@@ -2,16 +2,38 @@
 const Product = require('../models/Product');
 const Alert = require('../models/Alert');
 
+
+
 exports.getProducts = async (req, res) => {
   try {
-    const products = await Product.find().select('-__v');
-    res.json(products);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search ? String(req.query.search).toLowerCase() : '';
+    const skip = (page - 1) * limit;
+
+    let query = Product.find().select('-__v');
+    if (search) {
+      query = Product.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { category: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+        ],
+      }).select('-__v');
+    } else {
+      query = query.skip(skip).limit(limit);
+    }
+
+    const products = await query;
+    const total = search ? await Product.countDocuments(query) : await Product.countDocuments();
+
+    console.log('Fetched products:', { products, total });
+    res.json({ products, total });
   } catch (err) {
     console.error('Error fetching products:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 exports.getLowStockProducts = async (req, res) => {
   try {
     const products = await Product.aggregate([

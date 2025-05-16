@@ -175,17 +175,17 @@ const LoginPage: React.FC = () => {
                   </div>
                   <div className="relative flex justify-center text-sm">
                     <span className="px-2 bg-white text-gray-500">
-                      Informations de démo
+                     
                     </span>
                   </div>
                 </div>
                 
                 <div className="mt-4 grid gap-3 bg-purple-50 p-4 rounded-lg">
                   <div className="text-xs text-gray-600">
-                    <strong className="text-purple-700">Admin:</strong> adminuser / adminpass123
+                    <strong className="text-purple-700"></strong>
                   </div>
                   <div className="text-xs text-gray-600">
-                    <strong className="text-purple-700">Gestionnaire:</strong> user / password
+                    <strong className="text-purple-700"></strong>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -19,13 +18,11 @@ app.use(express.json());
 
 // Routes
 app.use('/auth', authRoutes);
-app.use('/users', userRoutes);
 app.use('/products', productRoutes);
-app.use('/movements', movementRoutes);
+app.use('/users', userRoutes);
 app.use('/alerts', alertRoutes);
 app.use('/analytics', analyticsRoutes);
-
-
+app.use('/movements', movementRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {

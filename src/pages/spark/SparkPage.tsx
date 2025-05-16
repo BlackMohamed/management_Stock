@@ -1,16 +1,11 @@
 // src/pages/spark/SparkPage.tsx
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart,
-  LineChart,
-  PieChart,
-  AreaChart,
   TrendingUp,
   Package,
   AlertTriangle,
   History,
   ArrowUpRight,
-  ArrowDownLeft,
 } from 'lucide-react';
 import {
   BarChart as RechartsBarChart,
@@ -35,14 +30,19 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const SparkPage: React.FC = () => {
   const { state } = useAuth();
-  const [products, setProducts] = useState<any[]>([]);
+  const [statistics, setStatistics] = useState({
+    totalProducts: 0,
+    totalStock: 0,
+    lowStockProducts: 0,
+    totalValue: 0,
+    categoryValues: [],
+  });
   const [movements, setMovements] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Fetch data from backend
   const fetchData = async () => {
     if (!state.isAuthenticated) {
       setError('Vous devez être connecté pour voir les insights.');
@@ -50,28 +50,64 @@ const SparkPage: React.FC = () => {
       return;
     }
 
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Token d\'authentification manquant. Veuillez vous reconnecter.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const [productsResponse, movementsResponse, alertsResponse] = await Promise.all([
-        axios.get('http://localhost:5000/products', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      const [statisticsResponse, movementsResponse, alertsResponse] = await Promise.all([
+        axios.get('http://localhost:5000/analytics/statistics', {
+          headers: { Authorization: `Bearer ${token}` },
         }),
         axios.get('http://localhost:5000/movements', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${token}` },
         }),
         axios.get('http://localhost:5000/alerts', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
-      console.log('Products:', productsResponse.data);
-      console.log('Movements:', movementsResponse.data);
-      console.log('Alerts:', alertsResponse.data);
-      setProducts(productsResponse.data);
-      setMovements(movementsResponse.data);
-      setAlerts(alertsResponse.data);
+
+      console.log('Statistics Response:', statisticsResponse.data);
+      if (statisticsResponse.data && typeof statisticsResponse.data === 'object' && 
+          'totalProducts' in statisticsResponse.data && 
+          'totalStock' in statisticsResponse.data && 
+          'lowStockProducts' in statisticsResponse.data && 
+          'totalValue' in statisticsResponse.data && 
+          Array.isArray(statisticsResponse.data.categoryValues)) {
+        setStatistics(statisticsResponse.data);
+      } else {
+        console.warn('Invalid statistics format:', statisticsResponse.data);
+        setStatistics({ totalProducts: 0, totalStock: 0, lowStockProducts: 0, totalValue: 0, categoryValues: [] });
+      }
+
+      console.log('Movements Response:', movementsResponse.data);
+      if (Array.isArray(movementsResponse.data)) {
+        setMovements(movementsResponse.data);
+      } else {
+        console.warn('Invalid movements format:', movementsResponse.data);
+        setMovements([]);
+      }
+
+      console.log('Alerts Response:', alertsResponse.data);
+      if (Array.isArray(alertsResponse.data)) {
+        setAlerts(alertsResponse.data);
+      } else {
+        console.warn('Invalid alerts format:', alertsResponse.data);
+        setAlerts([]);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erreur lors du chargement des données');
-      console.error('Fetch error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Erreur lors du chargement des données';
+      console.error('Fetch error:', {
+        message: errorMessage,
+        status: err.response?.status,
+        url: err.response?.config?.url,
+        details: err.response?.data,
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -82,21 +118,9 @@ const SparkPage: React.FC = () => {
     setIsVisible(true);
   }, [state.isAuthenticated]);
 
-  // Calculate statistics
-  const totalProducts = products.length;
-  const totalStock = products.reduce((acc, product) => acc + (product.quantity || 0), 0);
-  const lowStockProducts = products.filter(
-    product => (product.quantity || 0) < (product.minStockAlert || 0)
-  ).length;
-  const totalValue = products.reduce(
-    (acc, product) => acc + ((product.price || 0) * (product.quantity || 0)),
-    0
-  );
-
-  // Debug category values for the chart
-  const categoryData = products.reduce((acc: { [key: string]: number }, product) => {
-    const category = product.category || 'Inconnu';
-    acc[category] = (acc[category] || 0) + 1;
+  // Prepare data for charts
+  const categoryData = statistics.categoryValues.reduce((acc: { [key: string]: number }, item) => {
+    acc[item.category || 'Inconnu'] = (acc[item.category || 'Inconnu'] || 0) + 1;
     return acc;
   }, {});
   console.log('Category Distribution:', categoryData);
@@ -126,18 +150,12 @@ const SparkPage: React.FC = () => {
   });
   console.log('Movements Data:', movementsData);
 
-  const categoryValues = products.reduce((acc: { [key: string]: number }, product) => {
-    const category = product.category || 'Inconnu';
-    acc[category] = (acc[category] || 0) + ((product.price || 0) * (product.quantity || 0));
-    return acc;
-  }, {});
-  console.log('Category Values:', categoryValues);
-
-  const valueChartData = Object.entries(categoryValues).map(([category, value]) => ({
-    category,
-    value: Math.round(value),
+  const valueChartData = statistics.categoryValues.map(item => ({
+    category: item.category || 'Inconnu',
+    value: Math.round(item.value),
   }));
   console.log('Value Chart Data:', valueChartData);
+
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('fr-MA', {
@@ -187,7 +205,7 @@ const SparkPage: React.FC = () => {
             <TrendingUp size={24} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold ml-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">
-            Tableau de Bord Analytique
+            Insights de Stock
           </h1>
         </div>
 
@@ -196,28 +214,28 @@ const SparkPage: React.FC = () => {
           {[
             {
               title: 'Total Produits',
-              value: totalProducts,
+              value: statistics.totalProducts,
               icon: Package,
               change: '+12%',
               gradient: 'from-blue-500 to-indigo-600',
             },
             {
               title: 'Stock Total',
-              value: totalStock,
+              value: statistics.totalStock,
               icon: Package,
               change: '+8%',
               gradient: 'from-purple-500 to-pink-600',
             },
             {
               title: 'Produits en Alerte',
-              value: lowStockProducts,
+              value: statistics.lowStockProducts,
               icon: AlertTriangle,
               change: '+3',
               gradient: 'from-orange-500 to-red-600',
             },
             {
               title: 'Valeur Totale',
-              value: formatCurrency(totalValue),
+              value: formatCurrency(statistics.totalValue),
               icon: History,
               change: '+15%',
               gradient: 'from-emerald-500 to-teal-600',

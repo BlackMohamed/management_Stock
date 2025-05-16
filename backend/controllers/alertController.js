@@ -1,11 +1,8 @@
-// backend/controllers/alertController.js
 const Alert = require('../models/Alert');
 
 exports.getAlerts = async (req, res) => {
   try {
-    const alerts = await Alert.find({ resolved: false })
-      .populate('productId', 'name quantity minStockAlert description')
-      .sort({ createdAt: -1 });
+    const alerts = await Alert.find().populate('productId', 'name quantity');
     res.json(alerts);
   } catch (err) {
     console.error('Error fetching alerts:', err);
@@ -21,9 +18,8 @@ exports.resolveAlert = async (req, res) => {
       { new: true }
     );
     if (!alert) return res.status(404).json({ message: 'Alert not found' });
-    res.json({ message: 'Alert resolved' });
+    res.json(alert);
   } catch (err) {
-    console.error('Error resolving alert:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
